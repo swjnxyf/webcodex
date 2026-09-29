@@ -16,7 +16,7 @@ export function useTraceRead(client: RuntimeV2Client) {
     current.current?.abort();
     current.current = null;
   }, [client]);
-  const read = useCallback(async (request: TraceRequest): Promise<TracePage | null> => {
+  const read = useCallback(async (request: TraceRequest): Promise<TracePage | null | undefined> => {
     current.current?.abort();
     const controller = new AbortController();
     current.current = controller;
@@ -24,7 +24,7 @@ export function useTraceRead(client: RuntimeV2Client) {
     setError("");
     try {
       const response = await readTrace(client, request, controller.signal);
-      if (controller.signal.aborted || current.current !== controller) return null;
+      if (controller.signal.aborted || current.current !== controller) return undefined;
       if (!response?.ok || !response.data) {
         setError(response?.status === 403 ? "Administrator diagnostic access required" :
           response?.status === 401 ? "Sign in to inspect diagnostics" :
@@ -33,7 +33,8 @@ export function useTraceRead(client: RuntimeV2Client) {
       }
       return response.data;
     } catch {
-      if (!controller.signal.aborted && current.current === controller) setError("Diagnostics unavailable");
+      if (controller.signal.aborted || current.current !== controller) return undefined;
+      setError("Diagnostics unavailable");
       return null;
     } finally {
       if (current.current === controller) {

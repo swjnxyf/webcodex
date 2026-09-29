@@ -25,6 +25,7 @@ function TraceCallPanel({ client, traceRef, language }: {
   useEffect(() => { setPage(null); setEvents([]); setPayload(null); }, [client]);
   const load = async (offset = 0) => {
     const next = await request.read({ trace_ref: traceRef, offset, limit: 12 });
+    if (next === undefined) return; // Superseded/aborted reads cannot clear newer evidence.
     if (!next) { setPage(null); setEvents([]); setPayload(null); return; }
     setPage(next);
     setEvents(previous => offset ? [...previous, ...(next.events || [])] : next.events || []);
@@ -46,6 +47,7 @@ function TraceCallPanel({ client, traceRef, language }: {
       {request.error && <p role="alert">{t(request.error)}</p>}
       {page?.status === "unavailable" && <p className="inventory-note">{t("Capture is not retained; it may be disabled, dropped, expired or evicted.")}</p>}
       {page?.status === "available" && <p className="inventory-note">{t("Captured mode")}: {page.trace_mode} · {t("Current capture")}: {page.capture_mode}</p>}
+      {page?.capture_health && <details className="trace-event"><summary>{t("Capture health (process-wide)")}</summary><pre>{JSON.stringify(page.capture_health, null, 2)}</pre></details>}
       {events.map((event, index) => <details key={index} className="trace-event" open={Boolean(event.diagnostic)}>
         <summary>{event.phase || event.event || t("Event")}</summary>
         <pre>{JSON.stringify(event.diagnostic ?? event, null, 2)}</pre>

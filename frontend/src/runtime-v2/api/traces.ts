@@ -37,6 +37,8 @@ export type TracePage = {
   reason?: string;
   error_kind?: string;
   capture_mode?: string;
+  capture_health?: { scope: string; queue_drops: number; budget_drops: number; write_failures: number };
+  response_handoff_observed?: boolean;
   trace_mode?: string;
   coverage?: string;
   events?: TraceEvent[];

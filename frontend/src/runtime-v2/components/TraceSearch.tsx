@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RuntimeLanguage } from "../../runtime_i18n.js";
 import { translate } from "../../runtime_i18n.js";
 import type { RuntimeV2Client } from "../api/client.js";
@@ -9,7 +9,7 @@ import { TraceCallDetails } from "./TraceCallDetails.js";
 
 function localDate(value: number): string {
   const date = new Date(value);
-  return new Date(value - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  return new Date(value - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19);
 }
 
 export function TraceSearch({ client, language, onSelectWindow }: {
@@ -24,6 +24,7 @@ export function TraceSearch({ client, language, onSelectWindow }: {
   const [page, setPage] = useState<TracePage | null>(null);
   const [invalid, setInvalid] = useState(false);
   const request = useTraceRead(client);
+  useEffect(() => { setPage(null); }, [client]);
   const search = async (query?: TraceQuery, offset = 0) => {
     setInvalid(false);
     const from = new Date(since).getTime(); const to = new Date(until).getTime();
@@ -43,8 +44,8 @@ export function TraceSearch({ client, language, onSelectWindow }: {
     <form onSubmit={event => { event.preventDefault(); void search(); }}>
       <label>{t("Exact Project ID")}<input value={project} onChange={event => setProject(event.target.value)} placeholder="agent:special:project" /></label>
       <label>{t("Exact tool name")}<input value={tool} onChange={event => setTool(event.target.value)} placeholder="work_on_project" /></label>
-      <label>{t("From")}<input type="datetime-local" value={since} onChange={event => setSince(event.target.value)} /></label>
-      <label>{t("Until")}<input type="datetime-local" value={until} onChange={event => setUntil(event.target.value)} /></label>
+      <label>{t("From")}<input type="datetime-local" step="1" value={since} onChange={event => setSince(event.target.value)} /></label>
+      <label>{t("Until")}<input type="datetime-local" step="1" value={until} onChange={event => setUntil(event.target.value)} /></label>
       <label className="trace-passive"><input type="checkbox" checked={includePassive} onChange={event => setIncludePassive(event.target.checked)} />{t("Include passive calls")}</label>
       <button type="submit" className="text-button">{t("Search retained calls")}</button>
     </form>
