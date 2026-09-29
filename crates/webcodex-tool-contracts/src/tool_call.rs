@@ -5197,9 +5197,14 @@ pub enum ToolCall {
         client_id: Option<String>,
     },
 
-    /// Admin-only bounded read of one Server-hosted full tool-request trace.
+    /// Admin-only diagnostic query or exact retained metadata/full trace read.
+    /// Omit trace_ref to query calls by time/Project/tool/Window; supply it to
+    /// read an event page, or add payload_index for one retained full payload.
     ReadToolTrace {
-        trace_ref: String,
+        #[serde(default)]
+        trace_ref: Option<String>,
+        #[serde(default)]
+        query: Option<crate::tool_inputs::ToolTraceQuery>,
         #[serde(default)]
         offset: Option<usize>,
         #[serde(default)]

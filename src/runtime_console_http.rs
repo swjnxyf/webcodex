@@ -30,6 +30,7 @@ use webcodex_core::runner_job_lifecycle::RunnerJobLifecycle;
 mod communication;
 mod goals;
 mod job_projection;
+mod trace;
 mod window_queries;
 use window_queries::*;
 mod window_collaboration;
@@ -83,6 +84,7 @@ pub(crate) fn routes() -> Router {
         .push(Router::with_path(api_path(RouteId::RuntimeConsoleRunner)).post(runner))
         .push(Router::with_path(api_path(RouteId::RuntimeConsoleWindows)).post(windows))
         .push(Router::with_path(api_path(RouteId::RuntimeConsoleWindow)).post(window))
+        .push(Router::with_path(api_path(RouteId::RuntimeConsoleTrace)).post(trace::read))
         .push(
             Router::with_path(api_path(RouteId::RuntimeConsoleWindowCollaboration))
                 .post(window_collaboration::list),

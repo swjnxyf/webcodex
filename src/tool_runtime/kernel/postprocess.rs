@@ -43,6 +43,7 @@ impl PostRecordResponse<'_> {
         if let Some(telemetry) = telemetry {
             telemetry.capture_canonical_result(&result);
         }
+        crate::tool_request_trace::capture_execution_evidence(self.tool_name, &result.output);
         let canonical_audit_output = canonical_audit_output(self.tool_name, &result.output);
         plan.project(&mut result);
         self.add_recorder_gap_hint(&mut result);

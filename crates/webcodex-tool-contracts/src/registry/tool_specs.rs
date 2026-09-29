@@ -196,7 +196,7 @@ fn operator_family_descriptors(family: ToolOperatorExtensionFamily) -> Vec<ToolD
     let descriptors = match family {
         ToolOperatorExtensionFamily::SkillRuntime | ToolOperatorExtensionFamily::SkillManagement => skills::tool_descriptors(),
         ToolOperatorExtensionFamily::MemoryRuntime | ToolOperatorExtensionFamily::MemoryManagement => memory::tool_descriptors(),
-        ToolOperatorExtensionFamily::TraceDiagnostics => vec![tool_descriptor("read_tool_trace", "Admin-only bounded reader for Server-hosted full tool-request traces. Omit payload_index to list safe payload metadata first; then read one bounded JSON payload by index. Available only when full trace mode is enabled. Trace payloads may contain sensitive tool data and never grant execution authority.")],
+        ToolOperatorExtensionFamily::TraceDiagnostics => vec![tool_descriptor("read_tool_trace", "Admin-only diagnostics over retained ActionAudit and Server trace files. Omit trace_ref to find calls/windows using query time range, exact Project or tool; reuse returned query bounds when paging. With trace_ref, offset/limit page metadata events (including bounded supplied/kernel arguments and context-return receipts); payload events advertise payload_index for explicit full-payload reads. Query and trace_ref cannot be combined. Missing capture is unknown, not proof the call did not occur. Stored captures remain readable after capture is disabled. No new authority, execution, or retry permission.")],
     };
     descriptors
         .into_iter()

@@ -30,6 +30,7 @@ mod continuation_feedback;
 pub(crate) mod control_sidecar;
 pub(crate) mod conversation_import;
 mod discovery_tools;
+mod trace_diagnostics;
 mod dispatch;
 mod edit_tool_telemetry;
 mod file_tools;

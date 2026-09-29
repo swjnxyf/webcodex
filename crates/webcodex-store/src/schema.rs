@@ -633,6 +633,9 @@ impl Database {
             "CREATE INDEX IF NOT EXISTS idx_action_events_operation_started
                  ON action_events(operation, started_at DESC)
                  WHERE operation IS NOT NULL;
+             CREATE INDEX IF NOT EXISTS idx_action_events_trace_diagnostic_time
+                 ON action_events(started_at DESC, request_observed_at_ms DESC, event_id DESC)
+                 WHERE server_trace_id IS NOT NULL;
              CREATE VIEW IF NOT EXISTS code_mode_action_traces AS
              SELECT
                  event_id,
