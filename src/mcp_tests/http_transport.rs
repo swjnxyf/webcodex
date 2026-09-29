@@ -1,4 +1,6 @@
 use super::*;
+#[path = "http_transport/metadata_trace.rs"]
+mod metadata_trace;
 
 fn with_mcp_recording_session(mut arguments: Value, session_id: &str) -> Value {
     arguments

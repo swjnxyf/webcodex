@@ -9,15 +9,37 @@ use std::collections::{BTreeMap, BTreeSet};
 use webcodex_tool_contracts::ToolTraceQuery;
 
 impl ToolRuntime {
-    pub(crate) async fn read_tool_trace_diagnostic(&self, call: ToolCall, auth: Option<&AuthContext>) -> ToolResult {
+    pub(crate) async fn read_tool_trace_diagnostic(
+        &self,
+        call: ToolCall,
+        auth: Option<&AuthContext>,
+    ) -> ToolResult {
         if !auth.is_some_and(|auth| auth.has_scope(SCOPE_ADMIN)) {
-            return failure("insufficient_scope", "Administrator diagnostic access required");
+            return failure(
+                "insufficient_scope",
+                "Administrator diagnostic access required",
+            );
         }
-        let ToolCall::ReadToolTrace { trace_ref, query, offset, limit, payload_index } = call else {
-            return failure("invalid_trace_request", "Expected read_tool_trace arguments");
+        let ToolCall::ReadToolTrace {
+            trace_ref,
+            query,
+            offset,
+            limit,
+            payload_index,
+        } = call
+        else {
+            return failure(
+                "invalid_trace_request",
+                "Expected read_tool_trace arguments",
+            );
         };
-        if (trace_ref.is_some() && query.is_some()) || (trace_ref.is_none() && payload_index.is_some()) {
-            return failure("invalid_trace_request", "query and trace_ref are exclusive; payload_index requires trace_ref");
+        if (trace_ref.is_some() && query.is_some())
+            || (trace_ref.is_none() && payload_index.is_some())
+        {
+            return failure(
+                "invalid_trace_request",
+                "query and trace_ref are exclusive; payload_index requires trace_ref",
+            );
         }
         let database = self.window_activity_db.clone();
         let result = tokio::task::spawn_blocking(move || {
@@ -62,23 +84,52 @@ impl ToolRuntime {
 }
 
 fn normalize_query(mut query: ToolTraceQuery) -> Result<ToolTraceQuery, TraceReadError> {
-    if query.window_key.as_deref().is_some_and(|key| key.len()!=64 || !key.bytes().all(|b| b.is_ascii_hexdigit()))
-        || query.project.as_deref().is_some_and(|s| s.is_empty() || s.len()>512)
-        || query.tool_name.as_deref().is_some_and(|s| s.is_empty() || s.len()>128) {
-        return Err(error("invalid_trace_request", "Invalid exact diagnostic selector"));
+    if query
+        .window_key
+        .as_deref()
+        .is_some_and(|key| key.len() != 64 || !key.bytes().all(|b| b.is_ascii_hexdigit()))
+        || query
+            .project
+            .as_deref()
+            .is_some_and(|s| s.is_empty() || s.len() > 512)
+        || query
+            .tool_name
+            .as_deref()
+            .is_some_and(|s| s.is_empty() || s.len() > 128)
+    {
+        return Err(error(
+            "invalid_trace_request",
+            "Invalid exact diagnostic selector",
+        ));
     }
     query.window_key = query.window_key.map(|s| s.to_ascii_lowercase());
-    let until = query.until_ms.unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
-    let since = query.since_ms.unwrap_or_else(|| until.saturating_sub(86_400_000).max(0));
-    if since < 0 || until < since || until - since > 31*86_400_000 {
-        return Err(error("invalid_trace_request", "Diagnostic range must be nonnegative, ordered, and at most 31 days"));
+    let until = query
+        .until_ms
+        .unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
+    let since = query
+        .since_ms
+        .unwrap_or_else(|| until.saturating_sub(86_400_000).max(0));
+    if since < 0 || until < since || until - since > 31 * 86_400_000 {
+        return Err(error(
+            "invalid_trace_request",
+            "Diagnostic range must be nonnegative, ordered, and at most 31 days",
+        ));
     }
-    query.since_ms=Some(since); query.until_ms=Some(until);
+    query.since_ms = Some(since);
+    query.until_ms = Some(until);
     Ok(query)
 }
-fn error(kind: &'static str, message: &str) -> TraceReadError { TraceReadError {kind,message:message.into()} }
+fn error(kind: &'static str, message: &str) -> TraceReadError {
+    TraceReadError {
+        kind,
+        message: message.into(),
+    }
+}
 fn failure(kind: &str, message: &str) -> ToolResult {
-    ToolResult::err_with_output(message, json!({"error_kind":kind,"message":message,"state_changed":false}))
+    ToolResult::err_with_output(
+        message,
+        json!({"error_kind":kind,"message":message,"state_changed":false}),
+    )
 }
 
 #[cfg(test)]

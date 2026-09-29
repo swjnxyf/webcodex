@@ -1,5 +1,6 @@
 //! Shared Console fixtures; behavior tests are grouped by domain.
 mod job_queries;
+mod trace_diagnostics;
 
 use super::*;
 use crate::auth::AuthKind;

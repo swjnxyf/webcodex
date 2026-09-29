@@ -9,23 +9,48 @@ const MAX_ITEMS: usize = 8;
 const MAX_NODES: usize = 128;
 
 pub(super) fn selected(tool: &str) -> bool {
-    matches!(tool,
-        "work_on_project" | "read_files" | "search_project_texts" | "search_and_read"
-        | "run_process" | "run_shell" | "run_script" | "run_detached_process"
-        | "edit_project_files" | "apply_text_edits" | "apply_patch" | "write_project_file"
-        | "cargo_check" | "cargo_test" | "cargo_fmt" | "project_validate"
-        | "observe_jobs" | "wait_for_job_readiness" | "wait_for_job_terminal"
-        | "git_commit_paths" | "git_restore_paths" | "review_changes")
+    matches!(
+        tool,
+        "work_on_project"
+            | "read_files"
+            | "search_project_texts"
+            | "search_and_read"
+            | "run_process"
+            | "run_shell"
+            | "run_script"
+            | "run_detached_process"
+            | "edit_project_files"
+            | "apply_text_edits"
+            | "apply_patch"
+            | "write_project_file"
+            | "cargo_check"
+            | "cargo_test"
+            | "cargo_fmt"
+            | "project_validate"
+            | "observe_jobs"
+            | "wait_for_job_readiness"
+            | "wait_for_job_terminal"
+            | "git_commit_paths"
+            | "git_restore_paths"
+            | "review_changes"
+    )
 }
 
 fn prefix(text: &str, limit: usize) -> &str {
     let mut end = text.len().min(limit);
-    while !text.is_char_boundary(end) { end -= 1; }
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
     &text[..end]
 }
 
 #[derive(Default)]
-struct Budget { bytes: usize, nodes: usize, truncated: bool, omitted_bodies: usize }
+struct Budget {
+    bytes: usize,
+    nodes: usize,
+    truncated: bool,
+    omitted_bodies: usize,
+}
 impl Budget {
     fn copy(&mut self, value: &Value, depth: usize, field: &str) -> Value {
         self.nodes += 1;
@@ -33,13 +58,47 @@ impl Budget {
             self.truncated = true;
             return Value::Null;
         }
-        let key = field.to_ascii_lowercase();
-        if key.contains("token") || key.contains("password") || key.contains("secret")
-            || matches!(key.as_str(), "authorization" | "private_key" | "headers" | "env" | "environment" | "binding_id" | "activation_key" | "idempotency_key") {
+        let key = prefix(field, 64).to_ascii_lowercase();
+        if key.contains("token")
+            || key.contains("password")
+            || key.contains("secret")
+            || matches!(
+                key.as_str(),
+                "authorization"
+                    | "private_key"
+                    | "headers"
+                    | "env"
+                    | "environment"
+                    | "binding_id"
+                    | "activation_key"
+                    | "idempotency_key"
+            )
+        {
             self.bytes += 32;
             return json!({"omitted": "credential_field"});
         }
-        if matches!(key.as_str(), "content" | "text" | "script" | "stdin" | "stdout" | "stderr" | "old_text" | "new_text" | "patch" | "diff" | "image" | "base64" | "data" | "instruction" | "message" | "resolution") {
+        if matches!(
+            key.as_str(),
+            "content"
+                | "text"
+                | "script"
+                | "stdin"
+                | "stdout"
+                | "stderr"
+                | "stdout_tail"
+                | "stderr_tail"
+                | "preview"
+                | "old_text"
+                | "new_text"
+                | "patch"
+                | "diff"
+                | "image"
+                | "base64"
+                | "data"
+                | "instruction"
+                | "message"
+                | "resolution"
+        ) {
             self.omitted_bodies += 1;
             self.bytes += 64;
             return match value.as_str() {
@@ -49,38 +108,62 @@ impl Budget {
         }
         match value {
             Value::String(text) => {
-                let text_prefix = prefix(text, MAX_TEXT_BYTES.min(6000_usize.saturating_sub(self.bytes) / 6));
-                self.bytes += serde_json::to_vec(text_prefix).expect("string serialization").len();
+                let text_prefix = prefix(
+                    text,
+                    MAX_TEXT_BYTES.min(6000_usize.saturating_sub(self.bytes) / 6),
+                );
+                self.bytes += serde_json::to_vec(text_prefix)
+                    .expect("string serialization")
+                    .len();
                 if text_prefix.len() < text.len() {
                     self.truncated = true;
                     json!({"preview": text_prefix, "bytes": text.len(), "truncated": true})
-                } else { Value::String(text_prefix.to_owned()) }
+                } else {
+                    Value::String(text_prefix.to_owned())
+                }
             }
             Value::Array(values) => {
                 let mut items = Vec::new();
                 for item in values.iter().take(MAX_ITEMS) {
-                    if self.nodes >= MAX_NODES || self.bytes >= 6000 { break; }
+                    if self.nodes >= MAX_NODES || self.bytes >= 6000 {
+                        break;
+                    }
                     items.push(self.copy(item, depth + 1, ""));
                 }
                 self.bytes += 2 + items.len();
                 if items.len() != values.len() {
                     self.truncated = true;
                     json!({"items": items, "total_count": values.len(), "truncated": true})
-                } else { Value::Array(items) }
+                } else {
+                    Value::Array(items)
+                }
             }
             Value::Object(values) => {
                 let mut object = Map::new();
                 for (key, item) in values.iter().take(32) {
-                    if self.nodes >= MAX_NODES || self.bytes >= 6000 { break; }
+                    if depth == 0 && key == "_wc" {
+                        continue;
+                    } // Separately retained once as invocation metadata.
+                    if self.nodes >= MAX_NODES || self.bytes >= 6000 {
+                        break;
+                    }
                     let name = prefix(key, 64);
                     self.bytes += name.len() * 2 + 4;
-                    if name.len() != key.len() { self.truncated = true; }
+                    if name.len() != key.len() {
+                        self.truncated = true;
+                    }
                     object.insert(name.to_owned(), self.copy(item, depth + 1, key));
                 }
-                if object.len() != values.len() { self.truncated = true; }
+                let expected = values.len() - usize::from(depth == 0 && values.contains_key("_wc"));
+                if object.len() != expected {
+                    self.truncated = true;
+                }
                 Value::Object(object)
             }
-            _ => { self.bytes += 24; value.clone() }
+            _ => {
+                self.bytes += 24;
+                value.clone()
+            }
         }
     }
 
@@ -89,7 +172,9 @@ impl Budget {
             "omitted_bodies": self.omitted_bodies, "max_bytes": MAX_DIAGNOSTIC_BYTES});
         // The traversal bound limits allocation/work before this final byte check.
         // No oversized original body is serialized merely to compute its size.
-        if crate::json_measurement::serialized_json_len(&result).unwrap_or(usize::MAX) <= MAX_DIAGNOSTIC_BYTES {
+        if crate::json_measurement::serialized_json_len(&result).unwrap_or(usize::MAX)
+            <= MAX_DIAGNOSTIC_BYTES
+        {
             result
         } else {
             json!({"version": 1, "truncated": true, "reason": "diagnostic_budget_exceeded", "max_bytes": MAX_DIAGNOSTIC_BYTES})
@@ -99,24 +184,46 @@ impl Budget {
 
 pub(super) fn request(entry_tool: &str, arguments: &Value) -> Option<Value> {
     let (tool, args) = if entry_tool == "call_runtime_tool" {
-        (arguments.get("tool").and_then(Value::as_str)?, arguments.get("arguments").unwrap_or(&Value::Null))
-    } else { (entry_tool, arguments) };
-    if !selected(tool) { return None; }
+        (
+            arguments.get("tool").and_then(Value::as_str)?,
+            arguments.get("arguments").unwrap_or(&Value::Null),
+        )
+    } else {
+        (entry_tool, arguments)
+    };
+    if super::tool_suppresses_payload_capture(Some(tool)) {
+        return None;
+    }
+    if !selected(tool) && arguments.get("_wc").is_none() {
+        return None;
+    }
     let mut budget = Budget::default();
-    let args = budget.copy(args, 0, "");
     let invocation = arguments.get("_wc").map(|wc| budget.copy(wc, 0, ""));
-    Some(budget.finish(json!({"entry_tool": entry_tool, "tool": tool, "arguments": args, "invocation": invocation})))
+    let nested_invocation = (entry_tool == "call_runtime_tool")
+        .then(|| args.get("_wc"))
+        .flatten()
+        .map(|wc| budget.copy(wc, 0, ""));
+    let args = if selected(tool) {
+        budget.copy(args, 0, "")
+    } else {
+        json!({"omitted":"tool_not_selected"})
+    };
+    Some(budget.finish(json!({"entry_tool": prefix(entry_tool,128), "tool": prefix(tool,128), "arguments": args, "invocation": invocation, "nested_invocation":nested_invocation})))
 }
 
 pub(super) fn arguments(tool: &str, arguments: &Value) -> Option<Value> {
-    if !selected(tool) { return None; }
+    if !selected(tool) {
+        return None;
+    }
     let mut budget = Budget::default();
     let args = budget.copy(arguments, 0, "");
     Some(budget.finish(json!({"tool": tool, "arguments": args})))
 }
 
 fn context_receipt(output: &Value) -> Value {
-    let Some(projection) = output.get("context_projection") else { return Value::Null; };
+    let Some(projection) = output.get("context_projection") else {
+        return Value::Null;
+    };
     let materials = projection.get("materials").and_then(Value::as_array);
     let receipts = materials.into_iter().flatten().take(MAX_ITEMS).map(|material| {
         let view = &material["projection"];
@@ -139,19 +246,61 @@ fn context_receipt(output: &Value) -> Value {
 }
 
 pub(super) fn result(tool: &str, response: &Value) -> Option<Value> {
-    if !selected(tool) { return None; }
+    if super::tool_suppresses_payload_capture(Some(tool)) {
+        return None;
+    }
     let protocol = response.get("result").unwrap_or(response);
     let result = protocol.get("structuredContent").unwrap_or(protocol);
     let output = result.get("output").unwrap_or(result);
+    if !selected(tool) && output.get("context_projection").is_none() {
+        return None;
+    }
     let mut budget = Budget::default();
     let mut fields = Map::new();
     // Keep the actual final material receipts before optional result facts.
     let receipt = context_receipt(output);
-    if !receipt.is_null() { fields.insert("context".into(), budget.copy(&receipt, 0, "")); }
-    for name in ["resolved_project", "project", "project_resolution", "session_id", "workspace", "instructions", "semantic_navigation", "input_normalization", "execution_state", "command_execution_state", "state_changed", "exit_code", "job_id", "failure_kind", "error_kind", "reason_code", "passed", "tests_run_count", "source_state", "requested_count", "returned_count", "failed_count", "truncated", "output_truncated", "truncation_reason", "items"] {
-        if let Some(value) = output.get(name) { fields.insert(name.into(), budget.copy(value, 0, name)); }
+    if !receipt.is_null() {
+        fields.insert("context".into(), budget.copy(&receipt, 0, ""));
     }
-    Some(budget.finish(json!({"tool": tool, "success": result.get("success"),
+    for name in [
+        "resolved_project",
+        "project",
+        "project_resolution",
+        "session_id",
+        "workspace",
+        "instructions",
+        "semantic_navigation",
+        "input_normalization",
+        "execution_state",
+        "command_execution_state",
+        "command_started",
+        "command_completed",
+        "effective_timeout_secs",
+        "sync_wait_secs",
+        "cwd",
+        "shell",
+        "state_changed",
+        "exit_code",
+        "job_id",
+        "failure_kind",
+        "error_kind",
+        "reason_code",
+        "passed",
+        "tests_run_count",
+        "source_state",
+        "requested_count",
+        "returned_count",
+        "failed_count",
+        "truncated",
+        "output_truncated",
+        "truncation_reason",
+        "items",
+    ] {
+        if let Some(value) = output.get(name) {
+            fields.insert(name.into(), budget.copy(value, 0, name));
+        }
+    }
+    Some(budget.finish(json!({"tool": prefix(tool,128), "success": result.get("success"),
         "is_error": protocol.get("isError"), "error": budgeted_error(response, result), "output": fields})))
 }
 

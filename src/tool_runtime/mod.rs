@@ -30,7 +30,6 @@ mod continuation_feedback;
 pub(crate) mod control_sidecar;
 pub(crate) mod conversation_import;
 mod discovery_tools;
-mod trace_diagnostics;
 mod dispatch;
 mod edit_tool_telemetry;
 mod file_tools;
@@ -39,6 +38,7 @@ mod git;
 mod runner_authorization;
 mod runner_config;
 mod runner_instructions;
+mod trace_diagnostics;
 #[cfg(test)]
 pub(crate) use git::{framed_clean_show_changes_test_stdout, framed_show_changes_test_block};
 mod git_committed;

@@ -432,7 +432,11 @@ fn trace_reader_is_stateless_protocol_extension_admin_scoped_and_schema_static()
         .iter()
         .find(|tool| tool["name"] == "read_tool_trace")
         .expect("admin Stateless MCP 2026 trace reader");
-    assert_eq!(tool["inputSchema"]["required"], json!(["trace_ref"]));
+    // An omitted trace selects the bounded ActionAudit query; exact trace and
+    // query remain mutually exclusive at the shared reader boundary.
+    assert_eq!(tool["inputSchema"]["required"], json!([]));
+    assert!(tool["inputSchema"]["properties"]["query"].is_object());
+    assert!(tool["inputSchema"]["properties"]["trace_ref"].is_object());
     assert_eq!(tool["inputSchema"]["additionalProperties"], false);
     assert!(tool["inputSchema"]["properties"]["payload_index"].is_object());
     assert!(tool["outputSchema"]["properties"]["output"]["properties"]["payload"].is_object());

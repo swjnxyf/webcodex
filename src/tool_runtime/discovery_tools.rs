@@ -53,6 +53,9 @@ impl ToolRuntime {
             call @ ToolCall::ReadToolTrace { .. } => {
                 self.read_tool_trace_diagnostic(call, auth).await
             }
+            ToolCall::ToolManifest {
+                tool_name,
+                category,
                 intent,
                 include_recommended_flows,
                 include_risk_summary,

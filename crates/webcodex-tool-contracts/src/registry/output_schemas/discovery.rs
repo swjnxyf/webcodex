@@ -131,6 +131,8 @@ pub(super) fn output_schema_for_tool(name: &str) -> Option<Value> {
         "read_tool_trace" => Some(wrapped_output_schema(vec![
             ("trace_mode", schema_type("string", "Observed captured mode: metadata, full, or unknown.")),
             ("capture_mode", schema_type("string", "Current capture switch; separate from retained data.")),
+            ("capture_health", open_object_schema("Process-since-start queue/budget/write failure counters; not per-trace completeness or prior-process history.")),
+            ("response_handoff_observed", schema_type("boolean", "A handler-return event exists in the retained index; absence is inconclusive and presence does not prove remote delivery.")),
             ("status", schema_type("string", "available or unavailable; missing capture does not prove absent execution.")),
             ("coverage", schema_type("string", "Coverage boundary; observed events are not a completeness guarantee.")),
             ("events", array_schema(open_object_schema("One retained lifecycle or bounded diagnostic event."), "Byte- and count-bounded event page.")),
@@ -143,7 +145,7 @@ pub(super) fn output_schema_for_tool(name: &str) -> Option<Value> {
             ("delivery_boundary", schema_type("string", "Server handoff is not downstream receipt or model reading.")),
             ("window_summary_scope", schema_type("string", "Window counts describe only returned calls.")),
             ("payload_count", schema_type("integer", "Total indexed payloads in this trace.")),
-            ("returned_count", schema_type("integer", "Payload metadata entries returned in listing mode.")),
+            ("returned_count", schema_type("integer", "Entries returned in the selected call/event listing mode.")),
             ("offset", schema_type("integer", "Listing offset.")),
             ("next_offset", nullable_schema("integer", "Next listing offset or null.")),
             ("payloads", array_schema(open_object_schema("Safe payload metadata: payload_index, phase, payload_bytes, compressed_bytes, payload_sha256, and payload_available. Native paths are never returned."), "Bounded payload metadata.")),
